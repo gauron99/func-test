@@ -29,3 +29,4 @@ committed func.yaml.
 | `baddomain/` | `fn-baddomain` | an invalid domain in func.yaml: an error before any pipeline |
 | `badexpose/` | `fn-badexpose` | an invalid expose in func.yaml: an error before any pipeline |
 | `symlink/` | `fn-symlink` | `func.yaml` is a symlink to `conf/func.yaml` |
+| `nofunc/` | `-` | a directory with no `func.yaml`: `--source-dir nofunc` fails |
