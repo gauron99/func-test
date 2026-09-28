@@ -1,0 +1,62 @@
+
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  labels:
+    "function.knative.dev/name": "fn-pac-s2i"
+    "function.knative.dev/runtime": "go"
+    
+    tekton.dev/pipeline: func-451c8fa7-s2i-git
+  annotations:
+    # The event we are targeting as seen from the webhook payload
+    # this can be an array too, i.e: [pull_request, push]
+    pipelinesascode.tekton.dev/on-event: "[push]"
+
+    # The branch or tag we are targeting (ie: main, refs/tags/*)
+    pipelinesascode.tekton.dev/on-target-branch: "[pac-s2i]"
+
+    # Fetch the pipelie definition from the .tekton directory
+    pipelinesascode.tekton.dev/pipeline: .tekton/pipeline-pac.yaml
+
+    # How many runs we want to keep attached to this event
+    pipelinesascode.tekton.dev/max-keep-runs: "5"
+
+    # User defined Annotations
+    
+  generateName: func-451c8fa7-s2i-git-run
+spec:
+  params:
+    - name: gitRepository
+      value: "{{ repo_url }}"
+    - name: gitRevision
+      value: "{{ revision }}"
+    - name: contextDir
+      value: "."
+    - name: imageName
+      value: registry.localtest.me/func-test/fn-pac-s2i:latest
+    - name: registry
+      value: registry.localtest.me/func-test
+    - name: builderImage
+      value: registry.access.redhat.com/ubi8/go-toolset
+    - name: buildEnvs
+      value:
+        - =
+        
+    - name: s2iImageScriptsUrl
+      value: file://.func/build/bin
+    - name: tlsVerify
+      value: true
+  pipelineRef:
+   name: func-451c8fa7-s2i-git
+  workspaces:
+    - name: source-workspace
+      persistentVolumeClaim:
+        claimName: func-451c8fa7-s2i-git-pvc
+      subPath: source
+    - name: cache-workspace
+      persistentVolumeClaim:
+        claimName: func-451c8fa7-s2i-git-pvc
+      subPath: cache
+    - name: dockerconfig-workspace
+      secret:
+        secretName: func-451c8fa7-s2i-git-secret

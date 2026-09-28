@@ -1,0 +1,241 @@
+
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  labels:
+    "function.knative.dev/name": "fn-pac-s2i"
+    "function.knative.dev/runtime": "go"
+    
+  annotations:
+    
+  name: func-451c8fa7-s2i-git
+spec:
+  params:
+    - default: ''
+      description: Git repository that hosts the function project
+      name: gitRepository
+      type: string
+    - description: Git revision to build
+      name: gitRevision
+      type: string
+    - default: ''
+      description: Path where the function project is
+      name: contextDir
+      type: string
+    - description: Function image name
+      name: imageName
+      type: string
+    - description: The registry associated with the function image
+      name: registry
+      type: string
+    - description: Builder image to be used
+      name: builderImage
+      type: string
+    - description: Environment variables to set during build time
+      name: buildEnvs
+      type: array
+    - description: URL containing the default assemble and run scripts for the builder image
+      name: s2iImageScriptsUrl
+      type: string
+      default: 'image:///usr/libexec/s2i'
+    - description: Verify TLS when pushing to registry
+      name: tlsVerify
+      type: string
+      default: 'true'
+    - description: Git commit SHA of the function source
+      name: commit
+      default: ''
+      type: string
+  tasks:
+    - name: build
+      params:
+        - name: GIT_REPOSITORY
+          value: $(params.gitRepository)
+        - name: GIT_REVISION
+          value: $(params.gitRevision)
+        - name: IMAGE
+          value: $(params.imageName)
+        - name: REGISTRY
+          value: $(params.registry)
+        - name: PATH_CONTEXT
+          value: $(params.contextDir)
+        - name: BUILDER_IMAGE
+          value: $(params.builderImage)
+        - name: ENV_VARS
+          value:
+            - '$(params.buildEnvs[*])'
+        - name: S2I_IMAGE_SCRIPTS_URL
+          value: $(params.s2iImageScriptsUrl)
+        - name: TLSVERIFY
+          value: $(params.tlsVerify)
+        - name: COMMIT
+          value: $(params.commit)
+      taskSpec:
+        description: |-
+          Knative Functions Source-to-Image (S2I) is a toolkit and workflow for building reproducible container images from source code
+          S2I produces images by injecting source code into a base S2I container image and letting the container prepare that source code for execution. The base S2I container images contains the language runtime and build tools needed for building and running the source code.
+        params:
+          - description: ""
+            name: GIT_REPOSITORY
+          - description: ""
+            name: GIT_REVISION
+          - description: The location of the s2i builder image.
+            name: BUILDER_IMAGE
+          - description: Reference of the image S2I will produce.
+            name: IMAGE
+          - default: ""
+            description: The registry associated with the function image.
+            name: REGISTRY
+          - default: .
+            description: The location of the path to run s2i from.
+            name: PATH_CONTEXT
+          - default: "true"
+            description: Verify the TLS on the registry endpoint (for push/pull to a non-TLS registry)
+            name: TLSVERIFY
+          - default: "0"
+            description: Log level when running the S2I binary
+            name: LOGLEVEL
+          - default: []
+            description: Environment variables to set during _build-time_.
+            name: ENV_VARS
+            type: array
+          - default: image:///usr/libexec/s2i
+            description: The URL containing the default assemble and run scripts for the builder image.
+            name: S2I_IMAGE_SCRIPTS_URL
+          - default: ""
+            description: Git commit SHA of the function source
+            name: COMMIT
+        steps:
+          - name: fetch-src
+            params:
+              - name: output-path
+                value: $(workspaces.source.path)
+              - name: url
+                value: $(params.GIT_REPOSITORY)
+              - name: revision
+                value: $(params.GIT_REVISION)
+            ref:
+              params:
+                - name: bundle
+                  value: ghcr.io/tektoncd/catalog/upstream/stepactions/git-clone:09f70e6a6485a7d99b01d75610870b13222732e8
+                - name: kind
+                  value: StepAction
+                - name: name
+                  value: git-clone
+              resolver: bundles
+            when:
+              - input: $(params.GIT_REPOSITORY)
+                operator: notin
+                values:
+                  - ""
+          - command:
+              - scaffold
+              - $(params.PATH_CONTEXT)
+              - s2i
+            image: ghcr.io/knative/func-utils:v2
+            name: func-scaffold
+            workingDir: $(workspaces.source.path)
+          - command:
+              - s2i-generate
+              - --target
+              - /gen-source
+              - --path-context
+              - $(params.PATH_CONTEXT)
+              - --builder-image
+              - $(params.BUILDER_IMAGE)
+              - --registry
+              - $(params.REGISTRY)
+              - --image-script-url
+              - $(params.S2I_IMAGE_SCRIPTS_URL)
+              - --log-level
+              - $(params.LOGLEVEL)
+              - --commit
+              - $(params.COMMIT)
+              - $(params.ENV_VARS[*])
+            image: ghcr.io/knative/func-utils:v2
+            name: generate
+            volumeMounts:
+              - mountPath: /gen-source
+                name: gen-source
+              - mountPath: /env-vars
+                name: env-vars
+            workingDir: $(workspaces.source.path)
+          - image: quay.io/buildah/stable:v1.31.0
+            name: build
+            script: |
+              TLS_VERIFY_FLAG=""
+              if [ "$(params.TLSVERIFY)" = "false" ] || [ "$(params.TLSVERIFY)" = "0" ]; then
+                TLS_VERIFY_FLAG="--tls-verify=false"
+              fi
+      
+              # Set certificate directory flag if workspace is bound
+              [[ "$(workspaces.sslcertdir.bound)" == "true" ]] && CERT_DIR_FLAG="--cert-dir $(workspaces.sslcertdir.path)"
+      
+              # Set docker config before any buildah commands
+              [[ "$(workspaces.dockerconfig.bound)" == "true" ]] && export DOCKER_CONFIG="$(workspaces.dockerconfig.path)"
+      
+              # Setup artifacts cache path
+              ARTIFACTS_CACHE_PATH="$(workspaces.cache.path)/mvn-artifacts"
+              [ -d "${ARTIFACTS_CACHE_PATH}" ] || mkdir "${ARTIFACTS_CACHE_PATH}"
+      
+              # Build the image
+              buildah ${CERT_DIR_FLAG} bud --storage-driver=vfs ${TLS_VERIFY_FLAG} --layers \
+                -v "${ARTIFACTS_CACHE_PATH}:/tmp/artifacts/:rw,z,U" \
+                -f /gen-source/Dockerfile.gen -t $(params.IMAGE) .
+      
+              # Push the image
+              buildah ${CERT_DIR_FLAG} push --storage-driver=vfs ${TLS_VERIFY_FLAG} --digestfile $(workspaces.source.path)/image-digest \
+                $(params.IMAGE) docker://$(params.IMAGE)
+      
+              # Output the image digest
+              cat $(workspaces.source.path)/image-digest
+            securityContext:
+              capabilities:
+                add:
+                  - SETFCAP
+            volumeMounts:
+              - mountPath: /var/lib/containers
+                name: varlibcontainers
+              - mountPath: /gen-source
+                name: gen-source
+            workingDir: /gen-source
+          - command:
+              - deploy
+              - $(params.PATH_CONTEXT)
+              - $(params.IMAGE)
+            image: ghcr.io/knative/func-utils:v2
+            name: func-deploy
+            workingDir: $(workspaces.source.path)
+        volumes:
+          - emptyDir: {}
+            name: varlibcontainers
+          - emptyDir: {}
+            name: gen-source
+          - emptyDir: {}
+            name: env-vars
+        workspaces:
+          - name: source
+          - description: Directory where cache is stored (e.g. local mvn repo).
+            name: cache
+            optional: true
+          - name: sslcertdir
+            optional: true
+          - description: An optional workspace that allows providing a .docker/config.json file for Buildah to access the container registry. The file should be placed at the root of the Workspace with name config.json.
+            name: dockerconfig
+            optional: true
+      
+      workspaces:
+        - name: source
+          workspace: source-workspace
+        - name: cache
+          workspace: cache-workspace
+        - name: dockerconfig
+          workspace: dockerconfig-workspace
+  workspaces:
+    - description: Directory where function source is located.
+      name: source-workspace
+    - description: Directory where build cache is stored.
+      name: cache-workspace
+    - description: Directory containing image registry credentials stored in config.json file.
+      name: dockerconfig-workspace
+      optional: true

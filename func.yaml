@@ -3,10 +3,17 @@
 specVersion: 0.37.0
 name: fn-pac-s2i
 runtime: go
-created: 2026-09-28T13:53:48.776180335+02:00
+registry: registry.localtest.me/func-test
+created: 2026-09-28T19:50:26.684335103+02:00
+build:
+  source:
+    url: https://github.com/gauron99/func-test
+    revision: pac-s2i
+    dir: .
+  builder: s2i
 run:
   envs:
   - name: FOO
     value: committed
-build:
-  builder: s2i
+deploy:
+  image: registry.localtest.me/func-test/fn-pac-s2i:latest
