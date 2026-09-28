@@ -26,3 +26,4 @@ committed func.yaml.
 | `srcurl/` | `fn-srcurl` | a `build.source` committed in func.yaml is ignored: the cluster builds this repository |
 | `bad/` | `fn-bad` | a func.yaml that does not parse: an error before any pipeline |
 | `badns/` | `fn-badns` | an invalid namespace in func.yaml: an error before any pipeline |
+| `baddomain/` | `fn-baddomain` | an invalid domain in func.yaml: an error before any pipeline |
