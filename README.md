@@ -24,3 +24,4 @@ committed func.yaml.
 | `legacy/` | `fn-legacy` | a func.yaml from before specVersion 0.34 (top-level `envs` and `builder`, a `git:` block), migrated in memory: answers `FOO=legacy` |
 | `release-1.21/` | `fn-release-1-21` | a func.yaml as func 1.21 wrote it (was gauron99/func-repo): specVersion 0.36.0, the deployer under `deploy.deployer`, a committed registry on quay.io that `--registry` must replace |
 | `srcurl/` | `fn-srcurl` | a `build.source` committed in func.yaml is ignored: the cluster builds this repository |
+| `bad/` | `fn-bad` | a func.yaml that does not parse: an error before any pipeline |
