@@ -1,0 +1,15 @@
+# $schema: https://raw.githubusercontent.com/knative/func/release-1.21/schema/func_yaml-schema.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/knative/func/release-1.21/schema/func_yaml-schema.json
+specVersion: 0.36.0
+name: fn-release-1-21
+runtime: go
+registry: quay.io/dfridric
+created: 2026-02-04T16:31:41.287604169+01:00
+build:
+  builder: pack
+run:
+  envs:
+  - name: FOO
+    value: committed
+deploy:
+  deployer: raw
