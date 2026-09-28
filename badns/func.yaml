@@ -1,0 +1,11 @@
+# $schema: https://raw.githubusercontent.com/knative/func/main/schema/func_yaml-schema.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/knative/func/main/schema/func_yaml-schema.json
+specVersion: 0.37.0
+name: fn-badns
+runtime: go
+created: 2026-09-28T13:53:47.021284024+02:00
+run:
+  envs:
+  - name: FOO
+    value: committed
+namespace: Not_A_Namespace
