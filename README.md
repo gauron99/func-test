@@ -20,3 +20,4 @@ committed func.yaml.
 | `python/` | `fn-python` | another runtime: Python, built with pack |
 | `ns/` | `fn-ns` | `namespace: func-test-pinned` in func.yaml: deployed there without `-n`; another `-n` is refused |
 | `deployns/` | `fn-deployns` | the namespace recorded under `deploy.namespace`, as a deploy writes it |
+| `regpin/` | `fn-regpin` | registry from func.yaml, with no `--registry` (the kind test registry) |
