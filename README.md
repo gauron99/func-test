@@ -77,10 +77,11 @@ Each has its own history, with a single function at the root of the tree.
 | `pac-s2i` | `fn-pac-s2i` | Pipelines-as-Code, builder s2i |
 
 PAC reads `.tekton/` from the root of the pushed commit, hence one function at
-the root. `.tekton/` is not committed, as it depends on the cluster: generate
-it with `func config git set --git-branch <branch>`, commit it and push. PAC
-admits one Repository per repository URL in a cluster, so set up one PAC
-branch at a time.
+the root. The PAC branches carry the `.tekton/` that `func config git set`
+made for the kind cluster func sets up for testing (see their READMEs); for
+another cluster, run it again and commit the result. PAC admits one
+Repository per repository URL in a cluster, so set up one PAC branch at a
+time.
 
 A private repository for the credentials test: `gauron99/func-test-private`.
 

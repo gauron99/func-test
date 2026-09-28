@@ -100,6 +100,21 @@
       "expect": { "name": "fn-one", "namespace": "{namespace}", "deployer": "knative", "image": "{registry}/fn-one", "commit": "one-function-at-root", "answer": "fn-one:one-function-at-root FOO=committed" }
     },
     {
+      "id": "pac-branch-by-ref",
+      "about": "a function with .tekton/ and the func.yaml func config git set wrote, deployed by reference: the .tekton/ plays no part",
+      "revision": "pac-pack",
+      "args": ["--registry", "{registry}", "-n", "{namespace}"],
+      "expect": { "name": "fn-pac-pack", "namespace": "{namespace}", "deployer": "knative", "image": "{registry}/fn-pac-pack", "commit": "pac-pack", "answer": "fn-pac-pack:pac-pack FOO=committed" }
+    },
+    {
+      "id": "pac-branch-by-ref-s2i",
+      "about": "the same with builder s2i, from its func.yaml",
+      "revision": "pac-s2i",
+      "requires": ["disk"],
+      "args": ["--registry", "{registry}", "-n", "{namespace}"],
+      "expect": { "name": "fn-pac-s2i", "namespace": "{namespace}", "deployer": "knative", "builder": "s2i", "commit": "pac-s2i", "answer": "fn-pac-s2i:pac-s2i FOO=committed" }
+    },
+    {
       "id": "deployer-raw",
       "about": "deployer raw from the committed func.yaml",
       "dir": "raw",
