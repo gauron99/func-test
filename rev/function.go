@@ -27,7 +27,7 @@ func New() *MyFunction {
 func (f *MyFunction) Handle(res http.ResponseWriter, req *http.Request) {
 	// Name what was built: the function, the revision it was built from, and
 	// FOO, which comes from the committed func.yaml.
-	fmt.Fprintf(res, "fn-rev:main FOO=%s\n", os.Getenv("FOO"))
+	fmt.Fprintf(res, "fn-rev:quote FOO=%s\n", os.Getenv("FOO"))
 }
 
 // Start is called whenever a function instance is started.
