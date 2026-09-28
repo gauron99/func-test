@@ -19,6 +19,9 @@ Flags:
   --skip <req>        skip the cases that require <req> (repeatable): keda, disk,
                       kind-registry, namespace:func-test-pinned
   --keep              keep what each case deployed
+  --kind-node <name>  the container of a kind node (e.g. func-control-plane):
+                      after each deploy, also remove the function's image from
+                      it, and log the node's free disk
   --out <dir>         where to write the logs (default: runs/<time>)
 
 The namespaces must exist, with the rights the pipeline needs to deploy there:
@@ -28,7 +31,7 @@ EOF
 }
 
 here=$(cd "$(dirname "$0")" && pwd)
-FUNC=func REGISTRY= NS=func-test URL= INSECURE= KEEP= OUT=
+FUNC=func REGISTRY= NS=func-test URL= INSECURE= KEEP= OUT= NODE=
 SKIP=() GLOBS=()
 while [ $# -gt 0 ]; do
   case $1 in
@@ -39,6 +42,7 @@ while [ $# -gt 0 ]; do
     --insecure) INSECURE=1; shift ;;
     --skip) SKIP+=("$2"); shift 2 ;;
     --keep) KEEP=1; shift ;;
+    --kind-node) NODE=$2; shift 2 ;;
     --out) OUT=$2; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     -*) echo "unknown flag: $1" >&2; usage >&2; exit 2 ;;
@@ -100,11 +104,21 @@ unmet() {
   esac
 }
 
-# clean <name> <ns>: remove the function and what its builds left: the next
-# build from git on the same PVC fails otherwise (the clone cannot empty it).
+# clean <name> <ns> [image]: remove the function and what its builds left:
+# the next build from git on the same PVC fails otherwise (the clone cannot
+# empty it). With --kind-node, also the function's image from the node, once
+# no pod runs it any more.
 clean() {
   "$FUNC" delete "$1" -n "$2" >/dev/null 2>&1
   kubectl delete pipelinerun,pvc -n "$2" -l "function.knative.dev/name=$1" --wait=true >/dev/null 2>&1
+  [ -n "$NODE" ] && [ -n "${3:-}" ] || return 0
+  local _
+  for _ in $(seq 1 20); do
+    docker exec "$NODE" crictl rmi "${3/:latest@/@}" >/dev/null 2>&1 && return 0
+    docker exec "$NODE" crictl inspecti "${3/:latest@/@}" >/dev/null 2>&1 || return 0
+    sleep 3
+  done
+  echo "could not remove $3 from $NODE" >> "$log"
 }
 
 # get <url>: what the function answers, from inside the cluster.
@@ -166,6 +180,7 @@ while IFS= read -r c; do
   err=$(jq -r '.expect.error // empty' <<<"$c")
   name=$(jq -r '.expect.name // empty' <<<"$c")
   ns=$(subst "$(jq -r '.expect.namespace // "{namespace}"' <<<"$c")")
+  image=
   [ -n "$name" ] && clean "$name" "$ns"
   prs_before=$(kubectl get pipelinerun -A -o name 2>/dev/null | sort)
 
@@ -225,9 +240,9 @@ while IFS= read -r c; do
         keda)    kubectl get httpscaledobject -n "$ns" "$name" >/dev/null 2>&1 || fails+=("no HTTPScaledObject $name")
                  u="http://$name-interceptor-bridge.$ns.svc:8080" ;;  # a host the HTTPScaledObject registers
       esac
+      image=$(kubectl get ksvc -n "$ns" "$name" -o jsonpath='{.spec.template.spec.containers[0].image}' 2>/dev/null)
+      [ -n "$image" ] || image=$(kubectl get deploy -n "$ns" "$name" -o jsonpath='{.spec.template.spec.containers[0].image}' 2>/dev/null)
       if command -v skopeo >/dev/null; then
-        image=$(kubectl get ksvc -n "$ns" "$name" -o jsonpath='{.spec.template.spec.containers[0].image}' 2>/dev/null)
-        [ -n "$image" ] || image=$(kubectl get deploy -n "$ns" "$name" -o jsonpath='{.spec.template.spec.containers[0].image}' 2>/dev/null)
         label=$(skopeo inspect ${INSECURE:+--tls-verify=false} "docker://${image/:latest@/@}" 2>/dev/null \
           | jq -r '.Labels["org.opencontainers.image.revision"] // empty')
         if [ -z "$label" ]; then echo "image label: not checked (cannot read $image)" >> "$log"
@@ -247,7 +262,8 @@ while IFS= read -r c; do
       echo "answer from $u: $body" >> "$log"
       [ "$body" = "$answer" ] || fails+=("answered \"$(echo $body | cut -c1-80)\", want \"$answer\"")
     fi
-    [ -n "$KEEP" ] || clean "$name" "$ns"
+    [ -n "$KEEP" ] || clean "$name" "$ns" "${image:-}"
+    [ -z "$NODE" ] || echo "node free disk after cleanup: $(docker exec "$NODE" df -h --output=avail /var | tail -1 | tr -d ' ')" >> "$log"
   fi
 
   reason=$(jq -r '.known // empty' <<<"$c")

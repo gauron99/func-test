@@ -110,7 +110,8 @@ locally.
 
 ### Running them
 
-    ./run-cases.sh --func ./func --registry <registry> [--insecure] [--skip disk] [case-id glob...]
+    ./run-cases.sh --func ./func --registry <registry> [--insecure] [--skip disk] \
+        [--kind-node <node container>] [case-id glob...]
 
 For each case, `run-cases.sh` deploys from a new empty directory and checks:
 
@@ -122,6 +123,9 @@ For each case, `run-cases.sh` deploys from a new empty directory and checks:
   a curl pod in the cluster).
 
 Then it deletes what the case deployed, with its PipelineRuns and its PVC.
+On a kind cluster, `--kind-node <container>` (e.g. `func-control-plane`) also
+removes the function's image from the node, so the disk does not fill up
+case by case; the images the builds need stay cached.
 It prints one line per case (`PASS`, `FAIL`, `SKIP`, or `KNOWN` for a case
 marked `known`) and exits non-zero when a case fails. Logs go to `runs/`.
 
