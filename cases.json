@@ -135,7 +135,8 @@
       "dir": "s2i",
       "requires": ["disk"],
       "args": ["--registry", "{registry}", "-n", "{namespace}"],
-      "expect": { "name": "fn-s2i", "deployer": "knative", "builder": "s2i", "commit": "main", "answer": "fn-s2i:main FOO=committed" }
+      "expect": { "name": "fn-s2i", "deployer": "knative", "builder": "s2i", "commit": "main", "answer": "fn-s2i:main FOO=committed" },
+      "known": "s2i with --source-dir builds the function package, not its main: func points s2i at file://.func/build/bin, relative to the repository root, not to the function's directory (also on main)"
     },
     {
       "id": "runtime-python",
