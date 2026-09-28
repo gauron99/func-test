@@ -14,3 +14,4 @@ committed func.yaml.
 | Directory | Function | Tests |
 |---|---|---|
 | `rev/` | `fn-rev` | the base for the revisions below: its answer names the ref it was built from |
+| `raw/` | `fn-raw` | deployer `raw` from func.yaml: a Deployment and a Service, no Knative Service |
