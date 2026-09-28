@@ -18,3 +18,4 @@ committed func.yaml.
 | `keda/` | `fn-keda` | deployer `keda` from func.yaml: a Deployment and an HTTPScaledObject |
 | `s2i/` | `fn-s2i` | builder `s2i` from func.yaml, with no `--builder` |
 | `python/` | `fn-python` | another runtime: Python, built with pack |
+| `ns/` | `fn-ns` | `namespace: func-test-pinned` in func.yaml: deployed there without `-n`; another `-n` is refused |
