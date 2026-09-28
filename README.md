@@ -19,3 +19,4 @@ committed func.yaml.
 | `s2i/` | `fn-s2i` | builder `s2i` from func.yaml, with no `--builder` |
 | `python/` | `fn-python` | another runtime: Python, built with pack |
 | `ns/` | `fn-ns` | `namespace: func-test-pinned` in func.yaml: deployed there without `-n`; another `-n` is refused |
+| `deployns/` | `fn-deployns` | the namespace recorded under `deploy.namespace`, as a deploy writes it |
