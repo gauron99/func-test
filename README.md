@@ -13,3 +13,4 @@ committed func.yaml.
 
 | Directory | Function | Tests |
 |---|---|---|
+| `rev/` | `fn-rev` | the base for the revisions below: its answer names the ref it was built from |
