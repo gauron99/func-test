@@ -9,6 +9,23 @@ may have one. Every function answers `<name>:<ref> FOO=<value>`: the answer
 shows which function and revision the cluster built, and `FOO` comes from the
 committed func.yaml.
 
+## Using it
+
+    func deploy --remote --source https://github.com/gauron99/func-test \
+        --source-dir raw --registry <registry> -n <namespace>
+
+Add `--revision <ref>` for the revisions below. Then GET the function's URL:
+it answers what was built.
+
+Before deploying:
+
+- `ns/` and `deployns/` deploy into the namespace `func-test-pinned`: create
+  it first, with the rights the pipeline needs to deploy there.
+- `regpin/` pins `registry.localtest.me/pinned`, the registry of the kind
+  cluster func sets up for testing; elsewhere the push fails.
+- `bad/`, `badns/`, `baddomain/`, `badexpose/` and `nofunc/` are meant to be
+  refused before any pipeline runs.
+
 ## Functions on `main`
 
 | Directory | Function | Tests |
@@ -28,7 +45,7 @@ committed func.yaml.
 | `badns/` | `fn-badns` | an invalid namespace in func.yaml: an error before any pipeline |
 | `baddomain/` | `fn-baddomain` | an invalid domain in func.yaml: an error before any pipeline |
 | `badexpose/` | `fn-badexpose` | an invalid expose in func.yaml: an error before any pipeline |
-| `symlink/` | `fn-symlink` | `func.yaml` is a symlink to `conf/func.yaml` |
+| `symlink/` | `fn-symlink` | `func.yaml` is a symlink to `conf/func.yaml`, which works for a local function |
 | `nofunc/` | `-` | a directory with no `func.yaml`: `--source-dir nofunc` fails |
 
 ## Revisions
