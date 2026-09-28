@@ -1,0 +1,12 @@
+# $schema: https://raw.githubusercontent.com/knative/func/main/schema/func_yaml-schema.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/knative/func/main/schema/func_yaml-schema.json
+specVersion: 0.37.0
+name: fn-s2i
+runtime: go
+created: 2026-09-28T13:53:45.991233273+02:00
+run:
+  envs:
+  - name: FOO
+    value: committed
+build:
+  builder: s2i

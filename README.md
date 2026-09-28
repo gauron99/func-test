@@ -16,3 +16,4 @@ committed func.yaml.
 | `rev/` | `fn-rev` | the base for the revisions below: its answer names the ref it was built from |
 | `raw/` | `fn-raw` | deployer `raw` from func.yaml: a Deployment and a Service, no Knative Service |
 | `keda/` | `fn-keda` | deployer `keda` from func.yaml: a Deployment and an HTTPScaledObject |
+| `s2i/` | `fn-s2i` | builder `s2i` from func.yaml, with no `--builder` |
