@@ -28,6 +28,9 @@ Before deploying:
 
 ## Functions on `main`
 
+Each directory has a README: what its function is, how to deploy it, and what to
+expect.
+
 | Directory | Function | Tests |
 |---|---|---|
 | `rev/` | `fn-rev` | the base for the revisions below: its answer names the ref it was built from |
