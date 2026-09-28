@@ -27,3 +27,4 @@ committed func.yaml.
 | `bad/` | `fn-bad` | a func.yaml that does not parse: an error before any pipeline |
 | `badns/` | `fn-badns` | an invalid namespace in func.yaml: an error before any pipeline |
 | `baddomain/` | `fn-baddomain` | an invalid domain in func.yaml: an error before any pipeline |
+| `badexpose/` | `fn-badexpose` | an invalid expose in func.yaml: an error before any pipeline |
