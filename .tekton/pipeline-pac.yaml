@@ -1,0 +1,370 @@
+
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  labels:
+    "function.knative.dev/name": "fn-pac-pack"
+    "function.knative.dev/runtime": "go"
+    
+  annotations:
+    
+  name: func-158e68d8-pack-git
+spec:
+  params:
+    - default: ''
+      description: Git repository that hosts the function project
+      name: gitRepository
+      type: string
+    - description: Git revision to build
+      name: gitRevision
+      type: string
+    - default: ''
+      description: Path where the function project is
+      name: contextDir
+      type: string
+    - description: Function image name
+      name: imageName
+      type: string
+    - description: The registry associated with the function image
+      name: registry
+      type: string
+    - description: Builder image to be used
+      name: builderImage
+      type: string
+    - description: Environment variables to set during build time
+      name: buildEnvs
+      type: array
+    - description: Git commit SHA of the function source
+      name: commit
+      default: ''
+      type: string
+  tasks:
+    - name: build
+      params:
+        - name: GIT_REPOSITORY
+          value: $(params.gitRepository)
+        - name: GIT_REVISION
+          value: $(params.gitRevision)
+        - name: APP_IMAGE
+          value: $(params.imageName)
+        - name: REGISTRY
+          value: $(params.registry)
+        - name: SOURCE_SUBPATH
+          value: $(params.contextDir)
+        - name: BUILDER_IMAGE
+          value: $(params.builderImage)
+        - name: ENV_VARS
+          value:
+            - '$(params.buildEnvs[*])'
+        - name: COMMIT
+          value: $(params.commit)
+      taskSpec:
+        description: The Knative Functions Buildpacks task builds source into a container image and pushes it to a registry, using Cloud Native Buildpacks. This task is based on the Buildpacks Tekton task v 0.4.
+        params:
+          - description: ""
+            name: GIT_REPOSITORY
+          - description: ""
+            name: GIT_REVISION
+          - description: The name of where to store the app image.
+            name: APP_IMAGE
+          - description: The registry associated with the function image.
+            name: REGISTRY
+          - description: The image on which builds will run (must include lifecycle and compatible buildpacks).
+            name: BUILDER_IMAGE
+          - default: ""
+            description: A subpath within the "source" input where the source to build is located.
+            name: SOURCE_SUBPATH
+          - default: []
+            description: Environment variables to set during _build-time_.
+            name: ENV_VARS
+            type: array
+          - default: ""
+            description: Reference to a run image to use.
+            name: RUN_IMAGE
+          - default: ""
+            description: The name of the persistent app cache image (if no cache workspace is provided).
+            name: CACHE_IMAGE
+          - default: "false"
+            description: Do not write layer metadata or restore cached layers.
+            name: SKIP_RESTORE
+          - default: "1001"
+            description: The user ID of the builder image user.
+            name: USER_ID
+          - default: "0"
+            description: The group ID of the builder image user.
+            name: GROUP_ID
+          - default: empty-dir
+            description: The name of the platform directory.
+            name: PLATFORM_DIR
+          - default: ""
+            description: Registries to access without TLS verification
+            name: INSECURE_REGISTRIES
+          - default: ""
+            description: Git commit SHA of the function source
+            name: COMMIT
+        stepTemplate:
+          env:
+            - name: CNB_PLATFORM_API
+              value: "0.10"
+        steps:
+          - name: fetch-src
+            params:
+              - name: output-path
+                value: $(workspaces.source.path)
+              - name: url
+                value: $(params.GIT_REPOSITORY)
+              - name: revision
+                value: $(params.GIT_REVISION)
+            ref:
+              params:
+                - name: bundle
+                  value: ghcr.io/tektoncd/catalog/upstream/stepactions/git-clone:09f70e6a6485a7d99b01d75610870b13222732e8
+                - name: kind
+                  value: StepAction
+                - name: name
+                  value: git-clone
+              resolver: bundles
+            when:
+              - input: $(params.GIT_REPOSITORY)
+                operator: notin
+                values:
+                  - ""
+          - command:
+              - scaffold
+              - $(params.SOURCE_SUBPATH)
+              - pack
+            image: ghcr.io/knative/func-utils:v2
+            name: func-scaffold
+            workingDir: $(workspaces.source.path)
+          - args:
+              - --env-vars
+              - $(params.ENV_VARS[*])
+            image: docker.io/library/bash:5.1
+            name: prepare
+            script: |
+              #!/usr/bin/env bash
+              set -e
+      
+              if [[ "$(workspaces.cache.bound)" == "true" ]]; then
+                echo "> Setting permissions on '$(workspaces.cache.path)'..."
+                chown -R "$(params.USER_ID):$(params.GROUP_ID)" "$(workspaces.cache.path)"
+              fi
+      
+              #######################################################
+              #####  "/emptyDir" has been added for Knative Functions
+              for path in "/tekton/home" "/layers" "/emptyDir" "$(workspaces.source.path)"; do
+                echo "> Setting permissions on '$path'..."
+                chown -R "$(params.USER_ID):$(params.GROUP_ID)" "$path"
+      
+                if [[ "$path" == "$(workspaces.source.path)" ]]; then
+                    chmod 775 "$(workspaces.source.path)"
+                fi
+              done
+      
+              echo "> Parsing additional configuration..."
+              parsing_flag=""
+              envs=()
+              for arg in "$@"; do
+                  if [[ "$arg" == "--env-vars" ]]; then
+                      echo "-> Parsing env variables..."
+                      parsing_flag="env-vars"
+                  elif [[ "$parsing_flag" == "env-vars" ]]; then
+                      envs+=("$arg")
+                  fi
+              done
+      
+              echo "> Processing any environment variables..."
+              ENV_DIR="/platform/env"
+      
+              echo "--> Creating 'env' directory: $ENV_DIR"
+              mkdir -p "$ENV_DIR"
+      
+              for env in "${envs[@]}"; do
+                  IFS='=' read -r key value <<< "$env"
+                  if [[ "$key" != "" && "$value" != "" ]]; then
+                      path="${ENV_DIR}/${key}"
+                      echo "--> Writing ${path}..."
+                      echo -n "$value" > "$path"
+                  fi
+              done
+      
+              # Add middleware version as image label
+              middleware_version_file="$(workspaces.source.path)/middleware-version"
+              if [ -f "$middleware_version_file" ]; then
+                middleware_version="$(cat "$middleware_version_file")"
+                echo "--> Adding middleware version label: $middleware_version"
+                echo -n "middleware-version=$middleware_version" >> "${ENV_DIR}/BP_IMAGE_LABELS"
+              else
+                echo "No middleware-version file ($middleware_version_file) found"
+              fi
+      
+              # Add revision label
+              commit="$(params.COMMIT)"
+              if [ -n "$commit" ]; then
+                echo "--> Adding revision label: $commit"
+                echo -n " org.opencontainers.image.revision=$commit" >> "${ENV_DIR}/BP_IMAGE_LABELS"
+              fi
+      
+              ############################################
+              ##### Added part for Knative Functions #####
+              ############################################
+      
+              func_file="$(workspaces.source.path)/func.yaml"
+              if [ "$(params.SOURCE_SUBPATH)" != "" ]; then
+                func_file="$(workspaces.source.path)/$(params.SOURCE_SUBPATH)/func.yaml"
+              fi
+              echo "--> Saving 'func.yaml'"
+              cp $func_file /emptyDir/func.yaml
+      
+              # Python only: replicate the inline pre-buildpack logic.
+              # Lifecycle doesn't support inline buildpacks (only pack does),
+              # so the rearrangement must happen here for remote builds.
+              src_path="$(workspaces.source.path)"
+              if [ "$(params.SOURCE_SUBPATH)" != "" ]; then
+                src_path="$(workspaces.source.path)/$(params.SOURCE_SUBPATH)"
+              fi
+              if [ -f "$src_path/.func/build/service/main.py" ]; then
+                echo "--> Python function detected, applying scaffolding"
+                cd "$src_path"
+      
+                shopt -s dotglob
+                mkdir -p fn
+                for item in *; do
+                  case "$item" in
+                    fn|.func|.git|.gitignore|func.yaml) continue ;;
+                  esac
+                  mv "$item" fn/
+                done
+                shopt -u dotglob
+      
+                mv .func/build/* .
+                rm -rf .func
+                ln -snf fn f
+      
+                echo "===> Python scaffolding complete"
+              fi
+      
+              # LEGACY PYTHON begin: the scaffolder writes constraints.txt (cloudevents<2)
+              # for old parliament functions; point the remote pip-install at it.
+              if [ -f "$src_path/constraints.txt" ]; then
+                echo "--> Legacy parliament function detected, setting PIP_CONSTRAINT"
+                echo -n "constraints.txt" > "${ENV_DIR}/PIP_CONSTRAINT"
+              fi
+              # LEGACY PYTHON end
+      
+              ############################################
+            volumeMounts:
+              - mountPath: /layers
+                name: layers-dir
+              - mountPath: /platform
+                name: $(params.PLATFORM_DIR)
+              - mountPath: /emptyDir
+                name: empty-dir
+          - args:
+              - -app=$(workspaces.source.path)/$(params.SOURCE_SUBPATH)
+              - -cache-dir=$(workspaces.cache.path)
+              - -cache-image=$(params.CACHE_IMAGE)
+              - -uid=$(params.USER_ID)
+              - -gid=$(params.GROUP_ID)
+              - -layers=/layers
+              - -platform=/platform
+              - -report=/layers/report.toml
+              - -skip-restore=$(params.SKIP_RESTORE)
+              - -previous-image=$(params.APP_IMAGE)
+              - -run-image=$(params.RUN_IMAGE)
+              - $(params.APP_IMAGE)
+            command:
+              - /cnb/lifecycle/creator
+            env:
+              - name: DOCKER_CONFIG
+                value: $(workspaces.dockerconfig.path)
+              - name: CNB_INSECURE_REGISTRIES
+                value: $(params.INSECURE_REGISTRIES)
+            image: $(params.BUILDER_IMAGE)
+            imagePullPolicy: Always
+            name: create
+            securityContext:
+              runAsGroup: 0
+              runAsUser: 1001
+            volumeMounts:
+              - mountPath: /layers
+                name: layers-dir
+              - mountPath: /platform
+                name: $(params.PLATFORM_DIR)
+          - image: docker.io/library/bash:5.1
+            name: results
+            script: |
+              #!/usr/bin/env bash
+              set -e
+              cat /layers/report.toml | grep "digest" | cut -d'"' -f2 | cut -d'"' -f2 | tr -d '\n' | tee $(workspaces.source.path)/image-digest
+      
+              ############################################
+              ##### Added part for Knative Functions #####
+              ############################################
+      
+              digest=$(cat $(workspaces.source.path)/image-digest)
+      
+              func_file="$(workspaces.source.path)/func.yaml"
+              if [ "$(params.SOURCE_SUBPATH)" != "" ]; then
+                func_file="$(workspaces.source.path)/$(params.SOURCE_SUBPATH)/func.yaml"
+              fi
+      
+              if [[ ! -f "$func_file" ]]; then
+                echo "--> Restoring 'func.yaml'"
+                mkdir -p "$(workspaces.source.path)/$(params.SOURCE_SUBPATH)"
+                cp /emptyDir/func.yaml $func_file
+              fi
+      
+              echo ""
+              sed -i "s|^image:.*$|image: $(params.APP_IMAGE)|" "$func_file"
+              echo "Function image name: $(params.APP_IMAGE)"
+      
+              sed -i "s/^imageDigest:.*$/imageDigest: $digest/" "$func_file"
+              echo "Function image digest: $digest"
+      
+              sed -i "s|^registry:.*$|registry: $(params.REGISTRY)|" "$func_file"
+              echo "Function image registry: $(params.REGISTRY)"
+      
+              ############################################
+            volumeMounts:
+              - mountPath: /layers
+                name: layers-dir
+              - mountPath: /emptyDir
+                name: empty-dir
+          - command:
+              - deploy
+              - $(params.SOURCE_SUBPATH)
+              - $(params.APP_IMAGE)
+            image: ghcr.io/knative/func-utils:v2
+            name: func-deploy
+            workingDir: $(workspaces.source.path)
+        volumes:
+          - emptyDir: {}
+            name: empty-dir
+          - emptyDir: {}
+            name: layers-dir
+        workspaces:
+          - description: Directory where application source is located.
+            name: source
+          - description: Directory where cache is stored (when no cache image is provided).
+            name: cache
+            optional: true
+          - description: An optional workspace that allows providing a .docker/config.json file for Buildpacks lifecycle binary to access the container registry. The file should be placed at the root of the Workspace with name config.json.
+            name: dockerconfig
+            optional: true
+      
+      workspaces:
+        - name: source
+          workspace: source-workspace
+        - name: cache
+          workspace: cache-workspace
+        - name: dockerconfig
+          workspace: dockerconfig-workspace
+  workspaces:
+    - description: Directory where function source is located.
+      name: source-workspace
+    - description: Directory where build cache is stored.
+      name: cache-workspace
+    - description: Directory containing image registry credentials stored in config.json file.
+      name: dockerconfig-workspace
+      optional: true

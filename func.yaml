@@ -3,10 +3,17 @@
 specVersion: 0.37.0
 name: fn-pac-pack
 runtime: go
-created: 2026-09-28T13:53:48.620517377+02:00
+registry: registry.localtest.me/func-test
+created: 2026-09-28T19:44:27.249484829+02:00
+build:
+  source:
+    url: https://github.com/gauron99/func-test
+    revision: pac-pack
+    dir: .
+  builder: pack
 run:
   envs:
   - name: FOO
     value: committed
-build:
-  builder: pack
+deploy:
+  image: registry.localtest.me/func-test/fn-pac-pack:latest

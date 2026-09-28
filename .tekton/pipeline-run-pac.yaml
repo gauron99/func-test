@@ -1,0 +1,58 @@
+
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  labels:
+    "function.knative.dev/name": "fn-pac-pack"
+    "function.knative.dev/runtime": "go"
+    
+    tekton.dev/pipeline: func-158e68d8-pack-git
+  annotations:
+    # The event we are targeting as seen from the webhook payload
+    # this can be an array too, i.e: [pull_request, push]
+    pipelinesascode.tekton.dev/on-event: "[push]"
+
+    # The branch or tag we are targeting (ie: main, refs/tags/*)
+    pipelinesascode.tekton.dev/on-target-branch: "[pac-pack]"
+
+    # Fetch the pipeline definition from the .tekton directory
+    pipelinesascode.tekton.dev/pipeline: .tekton/pipeline-pac.yaml
+
+    # How many runs we want to keep attached to this event
+    pipelinesascode.tekton.dev/max-keep-runs: "5"
+
+    # User defined Annotations
+    
+  generateName: func-158e68d8-pack-git-run
+spec:
+  params:
+    - name: gitRepository
+      value: "{{ repo_url }}"
+    - name: gitRevision
+      value: "{{ revision }}"
+    - name: contextDir
+      value: "."
+    - name: imageName
+      value: registry.localtest.me/func-test/fn-pac-pack:latest
+    - name: registry
+      value: registry.localtest.me/func-test
+    - name: builderImage
+      value: ghcr.io/knative/builder-jammy-tiny:v2
+    - name: buildEnvs
+      value:
+        - =
+        
+  pipelineRef:
+   name: func-158e68d8-pack-git
+  workspaces:
+    - name: source-workspace
+      persistentVolumeClaim:
+        claimName: func-158e68d8-pack-git-pvc
+      subPath: source
+    - name: cache-workspace
+      persistentVolumeClaim:
+        claimName: func-158e68d8-pack-git-pvc
+      subPath: cache
+    - name: dockerconfig-workspace
+      secret:
+        secretName: func-158e68d8-pack-git-secret
