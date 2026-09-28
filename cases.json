@@ -1,0 +1,293 @@
+{
+  "repository": "https://github.com/gauron99/func-test",
+  "cases": [
+    {
+      "id": "rev-default-branch",
+      "about": "no revision given: the default branch",
+      "dir": "rev",
+      "args": ["--registry", "{registry}", "-n", "{namespace}"],
+      "expect": { "name": "fn-rev", "namespace": "{namespace}", "deployer": "knative", "image": "{registry}/fn-rev", "commit": "main", "answer": "fn-rev:main FOO=committed" }
+    },
+    {
+      "id": "rev-tag",
+      "about": "a tag",
+      "dir": "rev", "revision": "1.0",
+      "args": ["--registry", "{registry}", "-n", "{namespace}"],
+      "expect": { "name": "fn-rev", "deployer": "knative", "commit": "1.0", "answer": "fn-rev:tag-1.0 FOO=committed" }
+    },
+    {
+      "id": "rev-tag-yaml-number",
+      "about": "a tag YAML reads as the number 1.1 when unquoted",
+      "dir": "rev", "revision": "1.10",
+      "args": ["--registry", "{registry}", "-n", "{namespace}"],
+      "expect": { "name": "fn-rev", "deployer": "knative", "commit": "1.10", "answer": "fn-rev:tag-1.10 FOO=committed" }
+    },
+    {
+      "id": "rev-full-hash",
+      "about": "a full commit hash",
+      "dir": "rev", "revision": "{commit:1.0}",
+      "args": ["--registry", "{registry}", "-n", "{namespace}"],
+      "expect": { "name": "fn-rev", "deployer": "knative", "commit": "1.0", "answer": "fn-rev:tag-1.0 FOO=committed" }
+    },
+    {
+      "id": "rev-branch",
+      "about": "a branch",
+      "dir": "rev", "revision": "feature",
+      "args": ["--registry", "{registry}", "-n", "{namespace}"],
+      "expect": { "name": "fn-rev", "deployer": "knative", "commit": "feature", "answer": "fn-rev:feature FOO=committed" }
+    },
+    {
+      "id": "rev-url-fragment",
+      "about": "the revision as the URL's fragment",
+      "dir": "rev", "fragment": "feature",
+      "args": ["--registry", "{registry}", "-n", "{namespace}"],
+      "expect": { "name": "fn-rev", "deployer": "knative", "commit": "feature", "answer": "fn-rev:feature FOO=committed" }
+    },
+    {
+      "id": "rev-annotated-tag",
+      "about": "an annotated tag resolves to its commit",
+      "dir": "rev", "revision": "v2.0",
+      "args": ["--registry", "{registry}", "-n", "{namespace}"],
+      "expect": { "name": "fn-rev", "deployer": "knative", "commit": "v2.0", "answer": "fn-rev:feature FOO=committed" }
+    },
+    {
+      "id": "rev-tag-over-branch",
+      "about": "a tag wins over a branch of the same name",
+      "dir": "rev", "revision": "dup",
+      "args": ["--registry", "{registry}", "-n", "{namespace}"],
+      "expect": { "name": "fn-rev", "deployer": "knative", "commit": "refs/tags/dup", "answer": "fn-rev:tag-dup FOO=committed" }
+    },
+    {
+      "id": "rev-full-branch-ref",
+      "about": "refs/heads/... picks the branch",
+      "dir": "rev", "revision": "refs/heads/dup",
+      "args": ["--registry", "{registry}", "-n", "{namespace}"],
+      "expect": { "name": "fn-rev", "deployer": "knative", "commit": "refs/heads/dup", "answer": "fn-rev:branch-dup FOO=committed" }
+    },
+    {
+      "id": "rev-quote-in-ref",
+      "about": "a branch name with a double quote",
+      "dir": "rev", "revision": "q\"uote",
+      "args": ["--registry", "{registry}", "-n", "{namespace}"],
+      "expect": { "name": "fn-rev", "deployer": "knative", "commit": "q\"uote", "answer": "fn-rev:quote FOO=committed" }
+    },
+    {
+      "id": "rev-short-hash",
+      "about": "a shortened commit hash is refused",
+      "dir": "rev", "revision": "{short:1.0}",
+      "args": ["--registry", "{registry}", "-n", "{namespace}"],
+      "expect": { "error": "a commit must be given as its full hash" }
+    },
+    {
+      "id": "rev-unknown",
+      "about": "a revision that does not exist",
+      "dir": "rev", "revision": "nope",
+      "args": ["--registry", "{registry}", "-n", "{namespace}"],
+      "expect": { "error": "revision \"nope\" not found" }
+    },
+    {
+      "id": "rev-env-vars",
+      "about": "the source given by environment variables only",
+      "env": { "FUNC_SOURCE": "{url}", "FUNC_SOURCE_DIR": "rev", "FUNC_REVISION": "feature" },
+      "args": ["--registry", "{registry}", "-n", "{namespace}"],
+      "expect": { "name": "fn-rev", "deployer": "knative", "commit": "feature", "answer": "fn-rev:feature FOO=committed" }
+    },
+    {
+      "id": "one-function-at-root",
+      "about": "one function at the root of the repository, no --source-dir",
+      "revision": "one-function-at-root",
+      "args": ["--registry", "{registry}", "-n", "{namespace}"],
+      "expect": { "name": "fn-one", "namespace": "{namespace}", "deployer": "knative", "image": "{registry}/fn-one", "commit": "one-function-at-root", "answer": "fn-one:one-function-at-root FOO=committed" }
+    },
+    {
+      "id": "deployer-raw",
+      "about": "deployer raw from the committed func.yaml",
+      "dir": "raw",
+      "args": ["--registry", "{registry}", "-n", "{namespace}"],
+      "expect": { "name": "fn-raw", "namespace": "{namespace}", "deployer": "raw", "commit": "main", "answer": "fn-raw:main FOO=committed" }
+    },
+    {
+      "id": "deployer-keda",
+      "about": "deployer keda from the committed func.yaml",
+      "dir": "keda",
+      "requires": ["keda"],
+      "args": ["--registry", "{registry}", "-n", "{namespace}"],
+      "expect": { "name": "fn-keda", "namespace": "{namespace}", "deployer": "keda", "commit": "main", "answer": "fn-keda:main FOO=committed" }
+    },
+    {
+      "id": "builder-s2i",
+      "about": "builder s2i from the committed func.yaml",
+      "dir": "s2i",
+      "requires": ["disk"],
+      "args": ["--registry", "{registry}", "-n", "{namespace}"],
+      "expect": { "name": "fn-s2i", "deployer": "knative", "builder": "s2i", "commit": "main", "answer": "fn-s2i:main FOO=committed" }
+    },
+    {
+      "id": "runtime-python",
+      "about": "a Python function, built with pack",
+      "dir": "python",
+      "requires": ["disk"],
+      "args": ["--registry", "{registry}", "-n", "{namespace}"],
+      "expect": { "name": "fn-python", "deployer": "knative", "builder": "pack", "commit": "main", "answer": "fn-python:main FOO=committed" }
+    },
+    {
+      "id": "namespace-committed",
+      "about": "the namespace from func.yaml, with no -n",
+      "dir": "ns",
+      "requires": ["namespace:func-test-pinned"],
+      "args": ["--registry", "{registry}"],
+      "expect": { "name": "fn-ns", "namespace": "func-test-pinned", "deployer": "knative", "commit": "main", "answer": "fn-ns:main FOO=committed" }
+    },
+    {
+      "id": "namespace-committed-conflict",
+      "about": "-n that differs from the namespace in func.yaml is refused",
+      "dir": "ns",
+      "args": ["--registry", "{registry}", "-n", "{namespace}"],
+      "expect": { "error": "conflicts with the namespace \"func-test-pinned\"" }
+    },
+    {
+      "id": "namespace-deploy-section",
+      "about": "the namespace recorded under deploy.namespace, with no -n",
+      "dir": "deployns",
+      "requires": ["namespace:func-test-pinned"],
+      "args": ["--registry", "{registry}"],
+      "expect": { "name": "fn-deployns", "namespace": "func-test-pinned", "deployer": "knative", "commit": "main", "answer": "fn-deployns:main FOO=committed" }
+    },
+    {
+      "id": "namespace-deploy-section-conflict",
+      "about": "-n that differs from deploy.namespace is refused",
+      "dir": "deployns",
+      "args": ["--registry", "{registry}", "-n", "{namespace}"],
+      "expect": { "error": "conflicts with the namespace \"func-test-pinned\"" }
+    },
+    {
+      "id": "registry-committed",
+      "about": "the registry from func.yaml, with no --registry",
+      "dir": "regpin",
+      "requires": ["kind-registry"],
+      "args": ["-n", "{namespace}"],
+      "expect": { "name": "fn-regpin", "deployer": "knative", "image": "registry.localtest.me/pinned/fn-regpin", "commit": "main", "answer": "fn-regpin:main FOO=committed" }
+    },
+    {
+      "id": "funcyaml-legacy",
+      "about": "a func.yaml from before specVersion 0.34, migrated in memory",
+      "dir": "legacy",
+      "args": ["--registry", "{registry}", "-n", "{namespace}"],
+      "expect": { "name": "fn-legacy", "deployer": "knative", "commit": "main", "answer": "fn-legacy:main FOO=legacy" }
+    },
+    {
+      "id": "funcyaml-release-1.21",
+      "about": "a func.yaml as func 1.21 wrote it: deploy.deployer raw, a committed quay.io registry that --registry replaces",
+      "dir": "release-1.21",
+      "args": ["--registry", "{registry}", "-n", "{namespace}"],
+      "expect": { "name": "fn-release-1-21", "deployer": "raw", "image": "{registry}/fn-release-1-21", "commit": "main", "answer": "fn-release-1-21:main FOO=committed" }
+    },
+    {
+      "id": "funcyaml-source-ignored",
+      "about": "a build.source committed in func.yaml is ignored",
+      "dir": "srcurl",
+      "args": ["--registry", "{registry}", "-n", "{namespace}"],
+      "expect": { "name": "fn-srcurl", "deployer": "knative", "commit": "main", "answer": "fn-srcurl:main FOO=committed" }
+    },
+    {
+      "id": "funcyaml-symlink",
+      "about": "func.yaml is a symlink to conf/func.yaml",
+      "dir": "symlink",
+      "args": ["--registry", "{registry}", "-n", "{namespace}"],
+      "expect": { "name": "fn-symlink", "deployer": "knative", "commit": "main", "answer": "fn-symlink:main FOO=committed" },
+      "known": "func (#4039) reads the text of the link: 'func.yaml' is not valid ... cannot unmarshal !!str `conf/fu...`"
+    },
+    {
+      "id": "error-funcyaml-does-not-parse",
+      "about": "a func.yaml that does not parse",
+      "dir": "bad",
+      "args": ["--registry", "{registry}", "-n", "{namespace}"],
+      "expect": { "error": "'func.yaml' is not valid" }
+    },
+    {
+      "id": "error-invalid-namespace",
+      "about": "an invalid namespace in func.yaml",
+      "dir": "badns",
+      "args": ["--registry", "{registry}"],
+      "expect": { "error": "invalid namespace" }
+    },
+    {
+      "id": "error-invalid-namespace-flag",
+      "about": "an invalid namespace given with -n",
+      "dir": "rev",
+      "args": ["--registry", "{registry}", "-n", "Not_A_Namespace"],
+      "expect": { "error": "invalid namespace" }
+    },
+    {
+      "id": "error-invalid-domain",
+      "about": "an invalid domain in func.yaml",
+      "dir": "baddomain",
+      "args": ["--registry", "{registry}", "-n", "{namespace}"],
+      "expect": { "error": "invalid domain" }
+    },
+    {
+      "id": "error-invalid-expose",
+      "about": "an invalid expose in func.yaml",
+      "dir": "badexpose",
+      "args": ["--registry", "{registry}", "-n", "{namespace}"],
+      "expect": { "error": "invalid expose value: \"nope\"" }
+    },
+    {
+      "id": "error-no-funcyaml",
+      "about": "a directory with no func.yaml",
+      "dir": "nofunc",
+      "args": ["--registry", "{registry}", "-n", "{namespace}"],
+      "expect": { "error": "no func.yaml in \"nofunc\"" }
+    },
+    {
+      "id": "error-no-such-dir",
+      "about": "a directory that does not exist",
+      "dir": "nope",
+      "args": ["--registry", "{registry}", "-n", "{namespace}"],
+      "expect": { "error": "no func.yaml in \"nope\"" }
+    },
+    {
+      "id": "error-no-registry",
+      "about": "no registry anywhere",
+      "dir": "rev",
+      "args": ["-n", "{namespace}"],
+      "expect": { "error": "registry required" }
+    },
+    {
+      "id": "error-flag-env",
+      "about": "a flag that changes the function is refused: the committed func.yaml decides",
+      "dir": "rev",
+      "args": ["--registry", "{registry}", "-n", "{namespace}", "--env", "X=1"],
+      "expect": { "error": "--env cannot be used with --source" }
+    },
+    {
+      "id": "error-flag-build",
+      "about": "--build is refused",
+      "dir": "rev",
+      "args": ["--registry", "{registry}", "-n", "{namespace}", "--build"],
+      "expect": { "error": "--build cannot be used with --source" }
+    },
+    {
+      "id": "error-flag-image-env",
+      "about": "a refused flag given by environment variable",
+      "dir": "rev",
+      "env": { "FUNC_IMAGE": "example.com/x/y" },
+      "args": ["--registry", "{registry}", "-n", "{namespace}"],
+      "expect": { "error": "--image cannot be used with --source" }
+    },
+    {
+      "id": "error-flag-confirm",
+      "about": "--confirm is refused (open question: it is not a function setting)",
+      "dir": "rev",
+      "args": ["--registry", "{registry}", "-n", "{namespace}", "--confirm"],
+      "expect": { "error": "--confirm cannot be used with --source" }
+    },
+    {
+      "id": "error-builder-host",
+      "about": "the host builder cannot build in the cluster",
+      "dir": "rev",
+      "args": ["--registry", "{registry}", "-n", "{namespace}", "--builder", "host"],
+      "expect": { "error": "the \"host\" builder is not supported for remote deployments" }
+    }
+  ]
+}

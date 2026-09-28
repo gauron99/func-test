@@ -83,3 +83,27 @@ admits one Repository per repository URL in a cluster, so set up one PAC
 branch at a time.
 
 A private repository for the credentials test: `gauron99/func-test-private`.
+
+## Test cases: `cases.json`
+
+`cases.json` lists what each deployment must do, for a runner to check. Each
+case is one `func deploy --remote --source <repository>`, with:
+
+| Field | Meaning |
+|---|---|
+| `dir` | `--source-dir`; none for the root of the repository |
+| `revision` | `--revision`; none for the default branch |
+| `fragment` | appended to the URL as `#<fragment>`, instead of `--revision` |
+| `env` | environment variables for the deploy |
+| `args` | the other flags |
+| `requires` | what the cluster needs: `keda` (KEDA and its HTTP add-on), `disk` (a large build in the cluster), `namespace:func-test-pinned` (that namespace, with the rights the pipeline needs), `kind-registry` (`registry.localtest.me`) |
+| `expect.error` | the deploy fails with this text, and no PipelineRun starts |
+| `expect.*` | otherwise the deploy succeeds: `name`, `namespace`, `deployer` (`knative`, `raw` or `keda`), `image` (how the image name starts), `builder`, `commit` (the ref whose commit the cluster fetched and labelled the image with), `answer` (what the function answers to a GET) |
+| `known` | the case fails today, for this reason |
+
+Placeholders, filled in by the runner: `{registry}` and `{namespace}` (set
+per cluster), `{url}` (the repository), `{commit:<ref>}` and `{short:<ref>}`
+(the full and the shortened hash of `<ref>`).
+
+For every case, the directory func runs in stays empty: nothing is written
+locally.
