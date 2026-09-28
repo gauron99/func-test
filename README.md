@@ -21,3 +21,4 @@ committed func.yaml.
 | `ns/` | `fn-ns` | `namespace: func-test-pinned` in func.yaml: deployed there without `-n`; another `-n` is refused |
 | `deployns/` | `fn-deployns` | the namespace recorded under `deploy.namespace`, as a deploy writes it |
 | `regpin/` | `fn-regpin` | registry from func.yaml, with no `--registry` (the kind test registry) |
+| `legacy/` | `fn-legacy` | a func.yaml from before specVersion 0.34 (top-level `envs` and `builder`, a `git:` block), migrated in memory: answers `FOO=legacy` |

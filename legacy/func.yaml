@@ -1,0 +1,11 @@
+specVersion: 0.33.0
+name: fn-legacy
+runtime: go
+created: 2026-09-28T13:53:46.560315032+02:00
+builder: pack
+envs:
+- name: FOO
+  value: legacy
+git:
+  url: https://example.invalid/old.git
+  revision: old
