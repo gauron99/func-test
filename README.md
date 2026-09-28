@@ -1,0 +1,15 @@
+# func-test
+
+Functions for testing `func` deployments from a git repository:
+`func deploy --remote --source <this repo> --source-dir <dir>`, and
+Pipelines-as-Code.
+
+On `main`, each subdirectory holds one function, each set up the way a user
+may have one. Every function answers `<name>:<ref> FOO=<value>`: the answer
+shows which function and revision the cluster built, and `FOO` comes from the
+committed func.yaml.
+
+## Functions on `main`
+
+| Directory | Function | Tests |
+|---|---|---|
