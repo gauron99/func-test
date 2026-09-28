@@ -107,3 +107,26 @@ per cluster), `{url}` (the repository), `{commit:<ref>}` and `{short:<ref>}`
 
 For every case, the directory func runs in stays empty: nothing is written
 locally.
+
+### Running them
+
+    ./run-cases.sh --func ./func --registry <registry> [--insecure] [--skip disk] [case-id glob...]
+
+For each case, `run-cases.sh` deploys from a new empty directory and checks:
+
+- for an error case: the error text, and that no PipelineRun started;
+- otherwise: the PipelineRun fetched the commit of `expect.commit` (its
+  `gitRevision` and the commit its clone step reports), the image carries that
+  commit as its revision label, the deployer created its resources, the image
+  name and builder match, and the function answers `expect.answer` (asked from
+  a curl pod in the cluster).
+
+Then it deletes what the case deployed, with its PipelineRuns and its PVC.
+It prints one line per case (`PASS`, `FAIL`, `SKIP`, or `KNOWN` for a case
+marked `known`) and exits non-zero when a case fails. Logs go to `runs/`.
+
+Before running: the namespaces must exist, with the rights the pipeline needs
+to deploy there (`func-test`, or the one given with `--namespace`, and
+`func-test-pinned`). `--insecure` is for a plain-HTTP registry such as the one
+of the kind test cluster; `--skip disk` leaves out the large builds (s2i,
+Python).
