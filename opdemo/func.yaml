@@ -1,0 +1,14 @@
+# $schema: https://raw.githubusercontent.com/knative/func/265def9d/schema/func_yaml-schema.json
+# yaml-language-server: $schema=https://raw.githubusercontent.com/knative/func/265def9d/schema/func_yaml-schema.json
+specVersion: 0.36.0
+name: opdemo
+runtime: go
+image: ttl.sh/fop-1790848716-opdemo:2h
+namespace: opdemo
+created: 2026-10-01T12:32:15.106965164+02:00
+build:
+  builder: pack
+deploy:
+  namespace: opdemo
+  image: ttl.sh/fop-1790848716-opdemo:2h
+  deployer: raw
